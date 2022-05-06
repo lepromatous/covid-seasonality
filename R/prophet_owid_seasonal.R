@@ -174,6 +174,8 @@ uptake %>%
 df.prophet2 <- merge(df.prophet2, uptake, by.x = "ds", by.y="date", all.x=T)
 df.prophet2$weighted_vax[is.na(df.prophet2$weighted_vax)] <- 0
 
+
+source("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/R/prophet extra holidays.R")
 # Set up prophet ----
 m <- prophet(daily.seasonality= F, 
              weekly.seasonality="auto",
@@ -181,11 +183,16 @@ m <- prophet(daily.seasonality= F,
              interval.width = .95,
              seasonality.mode = 'additive',
              uncertainty.samples = 2000, 
-             mcmc.samples=1000) ##
+             mcmc.samples=1000,
+             holidays = holidays_extra)
+              ##holidays = holidays_extra) if want to add extras
 # add us holidays ----
 m <- add_country_holidays(m, country_name = 'US')
 m <- add_regressor(m, "variant")
 m <- add_regressor(m, "weighted_vax")
+m <- add_regressor(m, "weighted_vax")
+
+
 
 # forecast and decompose
 m <- fit.prophet(m, df.prophet2) 
@@ -248,7 +255,7 @@ ggplot(data = test) +
     panel.grid.major.x = element_line("gray90", 0.05)
   ) -> prophet_seasonal
 prophet_seasonal
-ggsave("~/Desktop/prophet_owid_season.pdf", width=10, height=6)
+ggsave("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/Manuscript/Lancet/Figures/prophet_US_seasonal.pdf", width=10, height=6)
 
 # library(png)
 # library(grid)

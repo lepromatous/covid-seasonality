@@ -161,7 +161,7 @@ ggplot(data = yo) +
   scale_x_date(
     date_breaks = "1 month", 
     date_labels = "%b", 
-    expand=c(0.02, 0.05)) +
+    expand=c(0.01, 0.05)) +
   scale_y_continuous(
     limits = c(-4000, 30000), n.breaks=12
   ) + 
@@ -184,5 +184,5 @@ ggplot(data = yo) +
                                                    shape = c(19,1),
                                                    stroke = c(0.8, 2)))) -> observed
 observed
-ggsave("~/Desktop/influenza.pdf", width=14, height=6)
+ggsave("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/Manuscript/Lancet/Figures/anomaly influenza/anomaly_US_influenza.pdf", width=14, height=6)
 

@@ -174,6 +174,8 @@ uptake %>%
 df.prophet2 <- merge(df.prophet2, uptake, by.x = "ds", by.y="date", all.x=T)
 df.prophet2$weighted_vax[is.na(df.prophet2$weighted_vax)] <- 0
 
+source("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/R/prophet extra holidays.R")
+
 # Set up prophet ----
 m <- prophet(daily.seasonality= F, 
              weekly.seasonality="auto",
@@ -181,7 +183,8 @@ m <- prophet(daily.seasonality= F,
              interval.width = .95,
              seasonality.mode = 'additive',
              uncertainty.samples = 2000, 
-             mcmc.samples=1000) ##
+             mcmc.samples=1000,
+             holidays = holidays_extra) ##
 # add us holidays ----
 m <- add_country_holidays(m, country_name = 'US')
 m <- add_regressor(m, "variant")
@@ -222,8 +225,8 @@ test %>%
   summarise(
     xmin = min(ds),
     xmax = max(ds),
-    ymin = -6000,
-    ymax = -5500 )-> label_range
+    ymin = -7000,
+    ymax = -6500 )-> label_range
 
 # replot ----
 ggplot(data = test) + 
@@ -242,7 +245,7 @@ ggplot(data = test) +
     date_labels = "%b", 
     expand=c(0.0, 0.0)) +
   scale_y_continuous(
-    limits = c(-6000, 3000), n.breaks=10
+    limits = c(-7000, 6000), n.breaks=10
   ) + 
   geom_ribbon(
     aes(x=ds, ymin =  holidays_lower, ymax=holidays_upper),
@@ -262,6 +265,6 @@ ggplot(data = test) +
   ) -> prophet_holiday
 
 prophet_holiday
-#ggsave("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/COVID forecast/manuscript/JAMA/Figures/prophet_all_holiday.pdf", width=10, height=6)
+ggsave("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/Manuscript/Lancet/Figures/prophet_US_holiday.pdf", width=10, height=6)
 
 
