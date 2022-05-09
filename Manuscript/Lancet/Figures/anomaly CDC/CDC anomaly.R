@@ -5,7 +5,7 @@ library(prophet)
 library(vroom)
 library(anomalize)
 library(RSocrata)
-
+library(rvest)
 # get data from cdc ----
 setwd("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/estimate_booster_impact/app")
 source("~/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/estimate_booster_impact/app/load_data.R")
