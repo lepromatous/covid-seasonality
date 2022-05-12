@@ -202,11 +202,11 @@ ggplot(data = yo) +
 return(observed_recomposed)
 }
 
-grr_global(locale = "United States", max.anom = 0.3)
+grr_global(locale = "United States", max.anom = 0.5)
 ggsave(paste0("~/Desktop/US_anomaly.pdf"), width=10, height=6)
 
 
-grr_global("EU")
+grr_global("EU", max.anom = 0.05)
 ggsave(paste0("~/Desktop/EU_anomaly.pdf"), width=10, height=6)
 
 
