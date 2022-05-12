@@ -9,7 +9,7 @@ library(cowplot)
 
 df <- vroom::vroom("https://covid.ourworldindata.org/data/owid-covid-data.csv")
 
-grr_global <- function(locale){
+grr_global <- function(locale, max.anom=0.3){
 
 df$loc <- locale
 
@@ -98,7 +98,7 @@ df.prophet$y <- imputeTS::na_ma(df.prophet$y, k=1, weighting = "simple")
 df.prophet%>%
   tibble() %>%
   time_decompose(y, method = "twitter", frequency = "auto", trend = "auto") %>%
-  anomalize(remainder, method = "gesd", alpha = 0.05, max_anoms = 0.3) %>%
+  anomalize(remainder, method = "gesd", alpha = 0.05, max_anoms = max.anom) %>%
   time_recompose() %>%
   plot_anomalies(time_recomposed = TRUE, ncol = 3, alpha_dots = 0.5) -> p_recomposed
 
@@ -202,7 +202,7 @@ ggplot(data = yo) +
 return(observed_recomposed)
 }
 
-grr_global("United States")
+grr_global(locale = "United States", max.anom = 0.3)
 ggsave(paste0("~/Desktop/US_anomaly.pdf"), width=10, height=6)
 
 
