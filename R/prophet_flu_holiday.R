@@ -128,8 +128,8 @@ test %>%
   summarise(
     xmin = min(ds),
     xmax = max(ds),
-    ymin = -11000,
-    ymax = -10500 )-> label_range
+    ymin = -11500,
+    ymax = -12000 )-> label_range
 
 # replot ----
 ggplot(data = test) + 
@@ -141,14 +141,14 @@ ggplot(data = test) +
                 ymin = ymin, ymax = ymax,
                 group = year)) +
   geom_text(data = label_range,
-            aes(x = xmin + 50, y = ymin+250,
+            aes(x = xmin + 50, y = ymin-250,
                 group = year, label = year), size=3) +
   scale_x_date(
     date_breaks = "1 month", 
     date_labels = "%b", 
     expand=c(0.0, 0.0)) +
   scale_y_continuous(
-    limits = c(-11000, 5000), n.breaks=10
+    limits = c(-12500, 5000), n.breaks=10
   ) + 
   geom_ribbon(
     aes(x=ds, ymin =  holidays_lower, ymax=holidays_upper),

@@ -12,28 +12,28 @@ locale = "United States" # for testing
 df <- vroom::vroom("https://covid.ourworldindata.org/data/owid-covid-data.csv")
 
 #grr_global <- function(locale){
-  
-  df$loc <- locale
-  
-  loc <- unique(df$loc)
-  
-  if(unique(df$loc) == "EU"){
-    loc1 <- c("Italy", "Germany", "United Kingdom", "France", "Spain")
-  } else {
-    loc1 <- unique(df$loc)
-  }
-  
-  
-  df %>%
-    filter(
-      location %in% loc1
-    ) %>%
-    select(
-      c(date, new_cases, loc)
-    ) %>%
-    rename(
-      ds = 1,
-      y = 2
+
+df$loc <- locale
+
+loc <- unique(df$loc)
+
+if(unique(df$loc) == "EU"){
+  loc1 <- c("Italy", "Germany", "United Kingdom", "France", "Spain")
+} else {
+  loc1 <- unique(df$loc)
+}
+
+
+df %>%
+  filter(
+    location %in% loc1
+  ) %>%
+  select(
+    c(date, new_cases, loc)
+  ) %>%
+  rename(
+    ds = 1,
+    y = 2
   ) %>%
   mutate(
     week = lubridate::ceiling_date(ds, "week", week_start = getOption("lubridate.week.start", 1))-1
@@ -51,32 +51,32 @@ df <- vroom::vroom("https://covid.ourworldindata.org/data/owid-covid-data.csv")
   filter(
     ds <= "2022-04-09"
   ) -> df
-  
-  # pops from https://www.worldometers.info/world-population/south-korea-population/ Apr 29/30, 2022
-  df$loc <- loc
-  
-  df %>%
-    mutate(
-      pop = case_when(
-        loc == "United Kingdom" ~ 68542352,
-        loc == "Spain" ~ 46787755,
-        loc == "Italy" ~ 60300591,
-        loc == "France" ~ 65537574,
-        loc == "Germany" ~ 84274792,
-        loc == "South Korea" ~ 51349697,
-        loc == "Japan" ~ 125776004,
-        loc == "Canada" ~ 38356604,
-        loc == "Australia" ~ 26052720,
-        loc == "United States" ~ 334583642,
-        TRUE ~ as.numeric(325443064)
-      )
-    ) -> df
-  
-  
-  
-  #pop <- 65537574 + 84274792 + 68542352 + 60300591 + 46787755
-  
-  df$y <- df$y / df$pop *1000000
+
+# pops from https://www.worldometers.info/world-population/south-korea-population/ Apr 29/30, 2022
+df$loc <- loc
+
+df %>%
+  mutate(
+    pop = case_when(
+      loc == "United Kingdom" ~ 68542352,
+      loc == "Spain" ~ 46787755,
+      loc == "Italy" ~ 60300591,
+      loc == "France" ~ 65537574,
+      loc == "Germany" ~ 84274792,
+      loc == "South Korea" ~ 51349697,
+      loc == "Japan" ~ 125776004,
+      loc == "Canada" ~ 38356604,
+      loc == "Australia" ~ 26052720,
+      loc == "United States" ~ 334583642,
+      TRUE ~ as.numeric(325443064)
+    )
+  ) -> df
+
+
+
+#pop <- 65537574 + 84274792 + 68542352 + 60300591 + 46787755
+
+df$y <- df$y / df$pop *1000000
 
 
 # clean ----
@@ -100,7 +100,7 @@ covariants %>%
     total = sum(c_across(where(is.numeric)), na.rm=T)
   ) %>%
   relocate(
-    week
+    week, .before = x20b_s_732a
   ) %>%
   select(
     -state
@@ -132,7 +132,7 @@ covariants$week <- as.Date(week, origin="1970-01-01")
 
 covariants %>%
   pivot_longer(
-    cols = 1:(nrow(covariants)-2), values_to = "freq", names_to="variant"
+    cols = 1:29, values_to = "freq", names_to="variant"
   ) -> plot
 
 plot %>%
@@ -173,33 +173,71 @@ uptake %>%
 # merge and remove NA to zero ----
 df.prophet2 <- merge(df.prophet2, uptake, by.x = "ds", by.y="date", all.x=T)
 df.prophet2$weighted_vax[is.na(df.prophet2$weighted_vax)] <- 0
-
-
 source("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/R/prophet extra holidays.R")
+
+
+# merge google data----
+google2020 <- vroom::vroom("/Users/timothywiemken/Downloads/Region_Mobility_Report_CSVs/2020_US_Region_Mobility_Report.csv")
+google2021 <- vroom::vroom("/Users/timothywiemken/Downloads/Region_Mobility_Report_CSVs/2021_US_Region_Mobility_Report.csv")
+google2022 <- vroom::vroom("/Users/timothywiemken/Downloads/Region_Mobility_Report_CSVs/2022_US_Region_Mobility_Report.csv")
+google <- data.frame(rbind(google2020, google2021, google2022))
+google %>%
+  janitor::clean_names()-> google
+rm(google2020)
+rm(google2021)
+rm(google2022)
+gc()
+
+google_national <- subset(google, is.na(google$sub_region_1) & is.na(google$sub_region_2))
+
+google_national %>%
+  rename(
+    state = "sub_region_1",
+    ds = "date",
+    resident = "residential_percent_change_from_baseline"
+  ) %>%
+  select(
+    ds, resident
+    )-> google_national
+
+# merge google and data ----
+df.prophet2 %>%
+  left_join(
+    google_national, by=c("ds" = "ds")
+  ) -> df.prophet3
+
+df.prophet3 <- df.prophet3[complete.cases(df.prophet3),]
+
+
+
+
+
 # Set up prophet ----
 m <- prophet(daily.seasonality= F, 
-             weekly.seasonality="auto",
+             weekly.seasonality=F,
              yearly.seasonality = T,
              interval.width = .95,
              seasonality.mode = 'additive',
-             uncertainty.samples = 2000, 
-             mcmc.samples=1000,
+             uncertainty.samples = 4000, 
+             mcmc.samples=2000,
              holidays = holidays_extra)
-              ##holidays = holidays_extra) if want to add extras
+##
 # add us holidays ----
 m <- add_country_holidays(m, country_name = 'US')
 m <- add_regressor(m, "variant")
 m <- add_regressor(m, "weighted_vax")
-#m <- add_seasonality(m, period = 365.25/2, name = "quarterly", fourier.order=10)
-
-
-
+m <- add_regressor(m, "resident")
+#m <- add_seasonality(m, name = "quarterly", period = 365.25/2, fourier.order = 10)
 
 # forecast and decompose
-m <- fit.prophet(m, df.prophet2) 
-
+m <- fit.prophet(m, df.prophet3) 
 
 forecast <- predict(m)
+
+# get plot prophet ----
+p<- prophet_plot_components(m, forecast, render_plot=F)
+
+
 # 
 # #forecast ----
 # future <- make_future_dataframe(m, periods = 60)
@@ -214,6 +252,7 @@ prophet_plot_components(m, forecast)
 # get plot prophet ----
 p<- prophet_plot_components(m, forecast, render_plot=F)
 
+
 # extract data from prophet plot ----
 test <- ggplot_build(p[[3]])$plot$data
 # turn datetime to date ----
@@ -226,6 +265,8 @@ test$year <- lubridate::year(test$ds)
 library(lubridate)
 test$ds2 <- as.Date(if_else(test$ds <= "2017-03-01", test$ds %m+% years(1), test$ds), origin="")
 class(test$ds2)
+test %>%
+  arrange(ds2) -> test
 
 # replot ----
 ggplot(data = test) + 
@@ -237,7 +278,7 @@ ggplot(data = test) +
     date_labels = "%b", 
     expand=c(0.03, 0.03)) +
   scale_y_continuous(
-    limits = c(-4000, 10000), n.breaks=10
+    limits = c(-6000, 20000), n.breaks=10
   ) + 
   geom_ribbon(
     aes(x=ds2, ymin =  yearly_lower, ymax=yearly_upper),
@@ -254,16 +295,10 @@ ggplot(data = test) +
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y =element_blank(),
     panel.grid.major.x = element_line("gray90", 0.05)
-  ) -> prophet_seasonal
-prophet_seasonal
-#ggsave("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/Manuscript/Lancet/Figures/prophet_US_seasonal.pdf", width=10, height=6)
+  ) -> prophet_seasonal_flu
+prophet_seasonal_flu
+ggsave("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/Manuscript/Lancet/Figures/prophet_US_trend.pdf", width=10, height=6)
 
-# library(png)
-# library(grid)
-# img <- readPNG("~/Desktop/santa.png")
-# prophet_seasonal + annotation_custom(rasterGrob(img),  
-#                                      xmin = as.numeric(as.Date("2017-12-18")), 
-#                                      xmax = as.numeric(as.Date("2018-02-01")),
-#                                      ymin = as.numeric(800), 
-#                                      ymax = as.numeric(1000))
+
+
 

@@ -177,12 +177,12 @@ ggplot(data = yo) +
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y =element_blank(),
     panel.grid.major.x = element_line("gray90", 0.05),
-    legend.position = c(0.2,0.9),
+    legend.position = c(0.5,0.9),
     legend.direction = "horizontal" 
   ) +
   guides(colour = guide_legend(override.aes = list(size = c(1,5),
                                                    shape = c(19,1),
                                                    stroke = c(0.8, 2)))) -> observed
 observed
-ggsave("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/Manuscript/Lancet/Figures/anomaly influenza/anomaly_US_influenza.pdf", width=14, height=6)
+ggsave("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/Manuscript/Lancet/Figures/Final/anomaly_US_influenza.pdf", width=14, height=6)
 

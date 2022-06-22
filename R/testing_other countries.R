@@ -4,68 +4,23 @@ library(janitor)
 library(prophet)
 library(vroom)
 library(anomalize)
-
-library(tidyquant)
-library(plotly)
-
-jhu <- vroom::vroom("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv")
+library(cowplot)
 
 
-jhu <- jhu[,c(7, 12:ncol(jhu))]
+df <- vroom::vroom("https://covid.ourworldindata.org/data/owid-covid-data.csv")
 
-jhu %>%
-  pivot_longer(
-    data = ., cols = 2:ncol(jhu),
-    names_to = "week",
-    values_to = "count"
-  ) %>%
-  mutate(
-    date = as.Date(week, format="%m/%d/%y")
-  ) %>%
-  janitor::clean_names() %>%
-  group_by(province_state, date) %>%
-  summarise(
-    cases = sum(count, na.rm=T)
-  ) %>%
-  ungroup() %>%
-  group_by(province_state) %>%
-  arrange(date) %>%
-  mutate(
-    new_cases = cases - lag(cases)
-  ) %>%
-  filter(
-    province_state %in% state.name
-  ) %>%
-ungroup()-> df
-
-regions <- vroom::vroom("https://raw.githubusercontent.com/cphalpert/census-regions/master/us%20census%20bureau%20regions%20and%20divisions.csv")
-
-# library(tidycensus)
-# get_estimates(geography="region", product = "population")
-# https://www.census.gov/popclock/data_tables.php?component=growth  --- for 2021 data
-
-grr_us <- function(locale, by.tick=5000){
-  
- if(locale == "South"){
-    keeps <- regions$State[regions$Region=="South"]
- } else if(locale == "Midwest"){
-   keeps <- regions$State[regions$Region=="Midwest"]
- } else if(locale == "Northeast"){
-   keeps <- regions$State[regions$Region=="Northeast"]
- } else if(locale == "West"){
-   keeps <- regions$State[regions$Region=="West"]
- }
+locale = "Peru"
   
   df %>%
     filter(
-      province_state %in% keeps
+      location %in% locale
     ) %>%
-    group_by(date) %>%
-    summarise(
-      new_cases2 = sum(new_cases, na.rm=T)
-    ) -> df
-  
-  df %>%
+    mutate(
+      loc = locale
+    ) %>%
+    dplyr::select(
+      c(date, new_cases, loc)
+    ) %>%
     rename(
       ds = 1,
       y = 2
@@ -84,16 +39,40 @@ grr_us <- function(locale, by.tick=5000){
       ds = "week"
     ) %>%
     filter(
-      ds <= "2022-04-09"
+      ds <= "2022-01-01"
     ) -> df
   
   # pops from https://www.worldometers.info/world-population/south-korea-population/ Apr 29/30, 2022
-  df$pop <- ifelse(locale == "South", 127225329,
-                   ifelse(locale == "Northeast", 57159838,
-                          ifelse(locale == "Midwest", 68841444,
-                                 ifelse(locale == "West", 78667134, NA))))
+  df$loc <- locale
   
-
+  df %>%
+    mutate(
+      pop = case_when(
+        loc == "United Kingdom" ~ 68542352,
+        loc == "Spain" ~ 46787755,
+        loc == "Italy" ~ 60300591,
+        loc == "France" ~ 65537574,
+        loc == "Germany" ~ 84274792,
+        loc == "South Korea" ~ 51349697,
+        loc == "Japan" ~ 125776004,
+        loc == "Canada" ~ 38356604,
+        loc == "Australia" ~ 26052720,
+        loc == "United States" ~ 334583642,
+        loc == "Argentina" ~ 46028261,
+        loc == "Chile" ~ 19445139,
+        loc == "Brazil" ~ 215578085,
+        loc == "Columbia" ~ 51975264,
+        loc == "Peru" ~ 33903960,
+        loc == "Ecuador" ~ 18188323,
+        loc == "Paraguay" ~ 7309667,
+        loc == "Venezuela" ~ 28278565,
+        
+        
+        TRUE ~ as.numeric(325443064)
+      )
+    ) -> df
+  
+  
   
   #pop <- 65537574 + 84274792 + 68542352 + 60300591 + 46787755
   
@@ -104,7 +83,6 @@ grr_us <- function(locale, by.tick=5000){
   # italy 60300591
   # spain 46787755
   #858342 5/1/2022
-  df <- subset(df, df$ds<="2022-04-09")
   
   
   
@@ -122,7 +100,7 @@ grr_us <- function(locale, by.tick=5000){
   df.prophet%>%
     tibble() %>%
     time_decompose(y, method = "twitter", frequency = "auto", trend = "auto") %>%
-    anomalize(remainder, method = "gesd", alpha = 0.05, max_anoms = 0.3) %>%
+    anomalize(remainder, method = "gesd", alpha = 0.1, max_anoms = 0.5) %>%
     time_recompose() %>%
     plot_anomalies(time_recomposed = TRUE, ncol = 3, alpha_dots = 0.5) -> p_recomposed
   
@@ -172,6 +150,8 @@ grr_us <- function(locale, by.tick=5000){
   
   
   # replot ----
+  
+  # replot ----
   ggplot(data = yo) + 
     geom_line(
       aes(x= ds, y=observed)
@@ -203,7 +183,7 @@ grr_us <- function(locale, by.tick=5000){
       date_labels = "%b", 
       expand=c(0.01, 0.0)) +
     scale_y_continuous(
-      limits = c(-1200, (max(yo$observed) + (5000 - max(yo$observed) %% 5000))), breaks = c(seq(0, (max(yo$observed) + (5000 - max(yo$recomposed_l2) %% 1000)), by=by.tick))
+      limits = c(-1200, (max(yo$observed) + (5000 - max(yo$observed) %% 5000))), breaks = c(seq(0, (max(yo$observed) + (5000 - max(yo$recomposed_l2) %% 1000)), by=5000))
     ) + 
     labs(
       colour = "Anomaly",
@@ -218,21 +198,9 @@ grr_us <- function(locale, by.tick=5000){
       panel.grid.minor.y =element_blank(),
       panel.grid.major.x = element_line("gray90", 0.05),
       legend.position = "none"
-      ) +
+    ) +
     guides(colour = guide_legend(override.aes = list(size = c(1,5),
                                                      shape = c(19,1),
                                                      stroke = c(0.8, 2)))) -> observed_recomposed
-  return(observed_recomposed)
-}
-
-grr_us("Midwest", by.tick=3000)
-ggsave(paste0("~/Desktop/Figure_2B_US_anomaly_Midwest.pdf"), width=10, height=6)
-
-# grr_us("Northeast")
-# ggsave(paste0("~/Desktop/US_anomaly_Northeast.pdf"), width=10, height=6)
-# 
-# grr_us("West")
-# ggsave(paste0("~/Desktop/US_anomaly_West.pdf"), width=10, height=6)
-
-grr_us("South")
-ggsave(paste0("~/Desktop/Figure_2D_US_anomaly_South.pdf"), width=10, height=6)
+  
+  observed_recomposed

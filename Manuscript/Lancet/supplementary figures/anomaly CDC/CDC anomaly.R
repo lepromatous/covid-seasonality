@@ -4,91 +4,32 @@ library(janitor)
 library(prophet)
 library(vroom)
 library(anomalize)
-library(cowplot)
+library(RSocrata)
 
-
-df <- vroom::vroom("https://covid.ourworldindata.org/data/owid-covid-data.csv")
-
-grr_global <- function(locale, max.anom=0.3){
-
-df$loc <- locale
-
-loc <- unique(df$loc)
-
-if(unique(df$loc) == "EU"){
-  loc1 <- c("Italy", "Germany", "United Kingdom", "France", "Spain")
-} else {
-  loc1 <- unique(df$loc)
-}
-
-
+# get data from cdc ----
+setwd("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/estimate_booster_impact/app")
+source("~/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/estimate_booster_impact/app/load_data.R")
+df <- df_shiny[,c(1,13,14)]
 df %>%
-  filter(
-    location %in% loc1
-  ) %>%
-  select(
-    c(date, new_cases, loc)
-  ) %>%
-  rename(
-    ds = 1,
-    y = 2
-  ) %>%
-  mutate(
-    week = lubridate::ceiling_date(ds, "week", week_start = getOption("lubridate.week.start", 1))-1
-  )  %>%
   group_by(week) %>%
-  summarise(
-    y = sum(y, na.rm=T)
-  ) %>%
-  filter(
-    !is.nan(y)
-  )%>%
-  rename(
-    ds = "week"
-  ) %>%
-  filter(
-    ds <= "2022-04-09"
-  ) -> df
-
-# pops from https://www.worldometers.info/world-population/south-korea-population/ Apr 29/30, 2022
-df$loc <- loc
-
-df %>%
   mutate(
-    pop = case_when(
-      loc == "United Kingdom" ~ 68542352,
-      loc == "Spain" ~ 46787755,
-      loc == "Italy" ~ 60300591,
-      loc == "France" ~ 65537574,
-      loc == "Germany" ~ 84274792,
-      loc == "South Korea" ~ 51349697,
-      loc == "Japan" ~ 125776004,
-      loc == "Canada" ~ 38356604,
-      loc == "Australia" ~ 26052720,
-      loc == "United States" ~ 334583642,
-      TRUE ~ as.numeric(325443064)
-    )
-  ) -> df
+    casez = sum(cases, na.rm=T),
+    rate = casez / 337341954 *100000
+  ) %>%
+  slice(1) %>%
+  select(c(1,5))-> df
 
+# clean ----
+rm(list=setdiff(ls(), "df"))
+gc()
 
-
-#pop <- 65537574 + 84274792 + 68542352 + 60300591 + 46787755
-
-df$y <- df$y / df$pop *1000000
-# france 65537574
-# germany 84274792
-# uk 68542352
-# italy 60300591
-# spain 46787755
-#858342 5/1/2022
-
+# build prophet data ----
+df.prophet <- data.frame(y=df[,"rate"], ds=df$week, date=df$week)
+df.prophet <- column_to_rownames(df.prophet, var = "date")
+names(df.prophet)<-c("y", "ds")
 
 
 # build prophet data ----
-df.prophet <- data.frame(y=df[,"y"], ds=df$ds, date=df$ds)
-df.prophet <- column_to_rownames(df.prophet, var = "ds")
-names(df.prophet)<-c("y", "ds")
-
 df.prophet$y[df.prophet$y==0] <- NA
 
 df.prophet$y <- imputeTS::na_ma(df.prophet$y, k=1, weighting = "simple")
@@ -98,7 +39,7 @@ df.prophet$y <- imputeTS::na_ma(df.prophet$y, k=1, weighting = "simple")
 df.prophet%>%
   tibble() %>%
   time_decompose(y, method = "twitter", frequency = "auto", trend = "auto") %>%
-  anomalize(remainder, method = "gesd", alpha = 0.05, max_anoms = max.anom) %>%
+  anomalize(remainder, method = "gesd", alpha = 0.05, max_anoms = 0.3) %>%
   time_recompose() %>%
   plot_anomalies(time_recomposed = TRUE, ncol = 3, alpha_dots = 0.5) -> p_recomposed
 
@@ -128,7 +69,7 @@ yo %>%
   summarise(
     xmin = min(ds),
     xmax = max(ds),
-    ymin = -1200,
+    ymin = -200,
     ymax = 0 ) -> label_range
 
 
@@ -166,10 +107,10 @@ ggplot(data = yo) +
   scale_color_manual(name = "Anomaly", values = c("black" = "#272936", "red" = "#88B0AD"), labels = c("No", "Yes")) +
   geom_rect(data = label_range, fill = "#A66923", color = "#f2f2f2", alpha = 0.5,
             aes(xmin = xmin, xmax = xmax, 
-                ymin = ymin, ymax = ymax-200,
+                ymin = ymin, ymax = ymax-100,
                 group = year)) +
   geom_text(data = label_range,
-            aes(x = xmin+25, y = ymin+500,
+            aes(x = xmin+25, y = ymin+50,
                 group = year, label = year)) +
   geom_ribbon(
     aes(x= ds, ymin = recomposed_l1, ymax=recomposed_l2), color = "#272936", alpha=0.2
@@ -179,7 +120,7 @@ ggplot(data = yo) +
     date_labels = "%b", 
     expand=c(0.01, 0.0)) +
   scale_y_continuous(
-    limits = c(-1200, (max(yo$observed) + (5000 - max(yo$observed) %% 5000))), breaks = c(seq(0, (max(yo$observed) + (5000 - max(yo$recomposed_l2) %% 1000)), by=5000))
+    limits = c(-200, 2000, by=200)
   ) + 
   labs(
     colour = "Anomaly",
@@ -193,23 +134,11 @@ ggplot(data = yo) +
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y =element_blank(),
     panel.grid.major.x = element_line("gray90", 0.05),
-    legend.position = "none"
+    legend.position = c(0.2,0.9),
+    legend.direction = "horizontal" 
   ) +
   guides(colour = guide_legend(override.aes = list(size = c(1,5),
                                                    shape = c(19,1),
                                                    stroke = c(0.8, 2)))) -> observed_recomposed
-return(observed_recomposed)
-}
-
-prefix <- "/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/Manuscript/Lancet/Figures/Final"
-
-max.anomz = 0.3
-
-# grr_global(locale = "United States", max.anom = max.anomz)
-# ggsave(paste0(prefix, "/US_anomaly", as.character(max.anomz*100),".pdf"), width=10, height=6)
-# 
-
-grr_global("EU", max.anom = max.anomz)
-ggsave(paste0(prefix, "/EU_anomaly", as.character(max.anomz*100),".pdf"), width=10, height=6)
-
-
+observed_recomposed
+ggsave("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/Manuscript/Lancet/Figures/anomaly CDC/anomaly_CDC.pdf", width=10, height=6)

@@ -189,6 +189,7 @@ m <- prophet(daily.seasonality= F,
 m <- add_country_holidays(m, country_name = 'US')
 m <- add_regressor(m, "variant")
 m <- add_regressor(m, "weighted_vax")
+m <- add_seasonality(m, period = 365.25/2)
 
 # forecast and decompose
 m <- fit.prophet(m, df.prophet2) 
@@ -265,6 +266,6 @@ ggplot(data = test) +
   ) -> prophet_holiday
 
 prophet_holiday
-ggsave("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/Manuscript/Lancet/Figures/prophet_US_holiday.pdf", width=10, height=6)
+#ggsave("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/Manuscript/Lancet/Figures/prophet_US_holiday.pdf", width=10, height=6)
 
 

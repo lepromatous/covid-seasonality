@@ -161,7 +161,4 @@ ggsave("/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Res
 
 
 
-
-install.packages("corpustools")
-
-devtools::install_github("twitter/BreakoutDetection")
+#write.table(available.packages(), '~/Desktop/packages.csv', sep=",", row.names=F, na="")

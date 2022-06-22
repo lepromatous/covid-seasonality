@@ -9,7 +9,7 @@ library(tidyquant)
 library(plotly)
 
 jhu <- vroom::vroom("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv")
-
+#arrow::write_feather(jhu, "/Users/timothywiemken/Library/CloudStorage/OneDrive-Pfizer/Documents/Research/github/covid-seasonality/Data/jhu.feather")
 
 jhu <- jhu[,c(7, 12:ncol(jhu))]
 
@@ -36,7 +36,7 @@ jhu %>%
   filter(
     province_state %in% state.name
   ) %>%
-ungroup()-> df
+  ungroup()-> df
 
 regions <- vroom::vroom("https://raw.githubusercontent.com/cphalpert/census-regions/master/us%20census%20bureau%20regions%20and%20divisions.csv")
 
@@ -46,15 +46,15 @@ regions <- vroom::vroom("https://raw.githubusercontent.com/cphalpert/census-regi
 
 grr_us <- function(locale, by.tick=5000){
   
- if(locale == "South"){
+  if(locale == "South"){
     keeps <- regions$State[regions$Region=="South"]
- } else if(locale == "Midwest"){
-   keeps <- regions$State[regions$Region=="Midwest"]
- } else if(locale == "Northeast"){
-   keeps <- regions$State[regions$Region=="Northeast"]
- } else if(locale == "West"){
-   keeps <- regions$State[regions$Region=="West"]
- }
+  } else if(locale == "Midwest"){
+    keeps <- regions$State[regions$Region=="Midwest"]
+  } else if(locale == "Northeast"){
+    keeps <- regions$State[regions$Region=="Northeast"]
+  } else if(locale == "West"){
+    keeps <- regions$State[regions$Region=="West"]
+  }
   
   df %>%
     filter(
@@ -93,7 +93,7 @@ grr_us <- function(locale, by.tick=5000){
                           ifelse(locale == "Midwest", 68841444,
                                  ifelse(locale == "West", 78667134, NA))))
   
-
+  
   
   #pop <- 65537574 + 84274792 + 68542352 + 60300591 + 46787755
   
@@ -105,7 +105,6 @@ grr_us <- function(locale, by.tick=5000){
   # spain 46787755
   #858342 5/1/2022
   df <- subset(df, df$ds<="2022-04-09")
-  
   
   
   # build prophet data ----
@@ -192,9 +191,9 @@ grr_us <- function(locale, by.tick=5000){
               aes(xmin = xmin, xmax = xmax, 
                   ymin = ymin, ymax = ymax-200,
                   group = year)) +
-    geom_text(data = label_range,
-              aes(x = xmin+25, y = ymin+500,
-                  group = year, label = year)) +
+    # geom_text(data = label_range,
+    #           aes(x = xmin+25, y = ymin+500,
+    #               group = year, label = year)) +
     geom_ribbon(
       aes(x= ds, ymin = recomposed_l1, ymax=recomposed_l2), color = "#272936", alpha=0.2
     ) +
@@ -211,28 +210,28 @@ grr_us <- function(locale, by.tick=5000){
       y="Rate of COVID-19 per 1,000,000 Population\n"
     ) + 
     theme(
-      axis.text.x = element_text(angle=90),
+      axis.text.x = element_blank(),
+      axis.ticks.x = element_blank(),
       panel.background = element_blank(),
       axis.line = element_line("black", size=0.2),
       panel.grid.major.y = element_blank(),
       panel.grid.minor.y =element_blank(),
       panel.grid.major.x = element_line("gray90", 0.05),
-      legend.position = "none"
-      ) +
-    guides(colour = guide_legend(override.aes = list(size = c(1,5),
-                                                     shape = c(19,1),
-                                                     stroke = c(0.8, 2)))) -> observed_recomposed
+      legend.position = c(0.5,0.9),
+      legend.direction = "horizontal",
+    ) -> observed_recomposed
   return(observed_recomposed)
 }
 
-grr_us("Midwest", by.tick=3000)
-ggsave(paste0("~/Desktop/Figure_2B_US_anomaly_Midwest.pdf"), width=10, height=6)
+# grr_us("Midwest", by.tick=3000)
+# ggsave(paste0("~/Desktop/US_anomaly_Midwest_noaxis.pdf"), width=10, height=6)
 
-# grr_us("Northeast")
-# ggsave(paste0("~/Desktop/US_anomaly_Northeast.pdf"), width=10, height=6)
-# 
-# grr_us("West")
-# ggsave(paste0("~/Desktop/US_anomaly_West.pdf"), width=10, height=6)
+grr_us("Northeast")
+ggsave("~/Desktop/Figure_2A_US_anomaly_Northeast.pdf", width=10, height=6)
 
-grr_us("South")
-ggsave(paste0("~/Desktop/Figure_2D_US_anomaly_South.pdf"), width=10, height=6)
+grr_us("West")
+ggsave("~/Desktop/Figure_2C_US_anomaly_West.pdf", width=10, height=6)
+
+# grr_us("South")
+# ggsave(paste0("~/Desktop/US_anomaly_South_noaxis.pdf"), width=10, height=6)
+
