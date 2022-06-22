@@ -8,6 +8,11 @@
 *.doc
 *.docx
 *.zip
+*.pptx
+*.ppt
+*.feather
+*.fst
+*.tiff
 
 # Session Data files
 .RData
