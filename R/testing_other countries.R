@@ -6,20 +6,28 @@ library(vroom)
 library(anomalize)
 library(cowplot)
 
+# get populations
+# get character codes for countries
+data(iso3166) 
+iso3166 %>%
+  dplyr::select(name, charcode) -> iso_codes
+rm(iso3166)
+rm(iso3166ud)
+gc()
 
+# OWID Data
 df <- vroom::vroom("https://covid.ourworldindata.org/data/owid-covid-data.csv")
 
-locale = "Peru"
-  
+country.options <- unique(df$location[df$location %in% iso_codes$name])
+
+plotter <- function(locales = NULL, decomposition.method = "twitter", anomalize.method = "gesd"){
+
   df %>%
     filter(
-      location %in% locale
-    ) %>%
-    mutate(
-      loc = locale
+      location %in% locales
     ) %>%
     dplyr::select(
-      c(date, new_cases, loc)
+      c(date, new_cases)
     ) %>%
     rename(
       ds = 1,
@@ -39,53 +47,27 @@ locale = "Peru"
       ds = "week"
     ) %>%
     filter(
-      ds <= "2022-01-01"
+      ds <= "2022-06-20"
     ) -> df
   
-  # pops from https://www.worldometers.info/world-population/south-korea-population/ Apr 29/30, 2022
-  df$loc <- locale
   
-  df %>%
+  # get population
+  set.wpp.year(2019)
+ 
+  pops <- lapply(locales, function(x) wpp.by.country(wpp.indicator("tpop"), iso_codes$charcode[iso_codes$name %in% x])) 
+  lapply(pops, function(x) subset(x, x$Year == 2020))  %>%
+    data.table::rbindlist() %>%
+    summarise(
+      pop = sum(value, na.rm=T)*1000
+    ) -> pops
+
+    df %>%
     mutate(
-      pop = case_when(
-        loc == "United Kingdom" ~ 68542352,
-        loc == "Spain" ~ 46787755,
-        loc == "Italy" ~ 60300591,
-        loc == "France" ~ 65537574,
-        loc == "Germany" ~ 84274792,
-        loc == "South Korea" ~ 51349697,
-        loc == "Japan" ~ 125776004,
-        loc == "Canada" ~ 38356604,
-        loc == "Australia" ~ 26052720,
-        loc == "United States" ~ 334583642,
-        loc == "Argentina" ~ 46028261,
-        loc == "Chile" ~ 19445139,
-        loc == "Brazil" ~ 215578085,
-        loc == "Columbia" ~ 51975264,
-        loc == "Peru" ~ 33903960,
-        loc == "Ecuador" ~ 18188323,
-        loc == "Paraguay" ~ 7309667,
-        loc == "Venezuela" ~ 28278565,
-        
-        
-        TRUE ~ as.numeric(325443064)
-      )
-    ) -> df
-  
-  
-  
-  #pop <- 65537574 + 84274792 + 68542352 + 60300591 + 46787755
+      pop = pops$pop
+      ) -> df
   
   df$y <- df$y / df$pop *1000000
-  # france 65537574
-  # germany 84274792
-  # uk 68542352
-  # italy 60300591
-  # spain 46787755
-  #858342 5/1/2022
-  
-  
-  
+
   # build prophet data ----
   df.prophet <- data.frame(y=df[,"y"], ds=df$ds, date=df$ds)
   df.prophet <- column_to_rownames(df.prophet, var = "ds")
@@ -94,13 +76,12 @@ locale = "Peru"
   df.prophet$y[df.prophet$y==0] <- NA
   
   df.prophet$y <- imputeTS::na_ma(df.prophet$y, k=1, weighting = "simple")
-  #df.prophet$y <- scale(df.prophet$y)
-  #df.prophet <- subset(df.prophet, df.prophet$ds<="2022-01-01")
+
   #recomposed version
   df.prophet%>%
     tibble() %>%
-    time_decompose(y, method = "twitter", frequency = "auto", trend = "auto") %>%
-    anomalize(remainder, method = "gesd", alpha = 0.1, max_anoms = 0.5) %>%
+    time_decompose(y, method = decomposition.method, frequency = "auto", trend = "auto") %>%
+    anomalize(remainder, method = anomalize.method, alpha = 0.05, max_anoms = 0.3) %>%
     time_recompose() %>%
     plot_anomalies(time_recomposed = TRUE, ncol = 3, alpha_dots = 0.5) -> p_recomposed
   
@@ -203,4 +184,10 @@ locale = "Peru"
                                                      shape = c(19,1),
                                                      stroke = c(0.8, 2)))) -> observed_recomposed
   
-  observed_recomposed
+  return(observed_recomposed)
+  
+}
+
+plotter(locales = "Portugal", decomposition.method = "twitter", anomalize.method = "gesd")
+
+country.options
