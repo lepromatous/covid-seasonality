@@ -13,6 +13,11 @@
 *.feather
 *.fst
 *.tiff
+*.ppt
+*.pptx
+*.png
+*.jpeg
+*.jpg
 
 # Session Data files
 .RData
