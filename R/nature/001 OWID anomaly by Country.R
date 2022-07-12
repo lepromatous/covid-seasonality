@@ -21,8 +21,8 @@ df <- merge(df, hemi, by.x = "iso_code", by.y = "iso_a3", all.x=T)
 ## filter out non USA/CA NA sites
 df$keep <- 0
 #df$keep[df$continent=="Europe"] <- 1
-#df$keep[df$continent=="North America" & df$location %in% c("United States", "Canada")] <- 1
-df$keep[df$continent=="Europe" & df$location %in% c("Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czechia", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden")] <- 1
+df$keep[df$continent=="North America" & df$location %in% c("United States", "Canada")] <- 1
+#df$keep[df$continent=="Europe" & df$location %in% c("Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czechia", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden", "United Kingdom")] <- 1
 
 # northern hem only ----
 df %>% 
@@ -94,7 +94,7 @@ df %>%
   df %>%
     tibble() %>%
     time_decompose(y, method = "twitter", frequency = "auto", trend = "auto") %>%
-    anomalize(remainder, method = "gesd", alpha = 0.05, max_anoms = 0.2) %>%
+    anomalize(remainder, method = "gesd", alpha = 0.05, max_anoms = 0.5) %>%
     time_recompose() %>%
     plot_anomalies(time_recomposed = TRUE, ncol = 3, alpha_dots = 0.5) -> p_recomposed
   
