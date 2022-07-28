@@ -37,53 +37,58 @@ library(qcensus)
                seasonality.mode = 'additive',
                uncertainty.samples = 1000, 
                mcmc.samples=500) ##
-
+  m <- add_regressor(m, "stringency_index")
   
-seasonality <- function(locs, outcome, titlez){
-  df <- subset(df, df$location == locs)
   
-  df <- df[,c("date", outcome)]
-  names(df) <- c("ds", "y")
-  # forecast and decompose
-  m <- fit.prophet(m, df) 
+  seasonality <- function(locs, outcome, titlez){
+    df <- subset(df, df$location == locs)
+    
+    df <- df[,c("date", outcome, "stringency_index")]
+    names(df) <- c("ds", "y", "stringency_index")
+    df <- subset(df, !is.na(df$y))
+    df$stringency_index <- zoo::na.locf.default(df$stringency_index)
+    
+    # forecast and decompose
+    m <- fit.prophet(m, df) 
+    
+    forecast <- predict(m)
+    
+    # get plot prophet ----
+    p<- prophet_plot_components(m, forecast, render_plot=T)
+    
+    p[[3]] +
+      scale_x_datetime(expand = c(0,0), date_breaks = "1 month", date_labels = month.name) + 
+      labs(
+        x = "",
+        y = "Yearly Seasonal Impact"
+      ) + 
+      theme(
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        panel.background = element_blank(),
+        axis.line = element_line("black", size = 0.2),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.y = element_line("gray90", 0.25)
+      ) +
+      annotate("rect",
+               xmin = as.POSIXct("2017-01-01 GMT"), 
+               xmax = as.POSIXct("2017-04-01 GMT"), 
+               ymin = 0, 
+               ymax = max(p[[3]]$data$yearly_upper), 
+               alpha = 0.09, fill = "blue") +
+      annotate("rect",
+               xmin = as.POSIXct("2017-11-01 GMT"), 
+               xmax = as.POSIXct("2017-12-31 GMT"), 
+               ymin = 0, 
+               ymax = max(p[[3]]$data$yearly_upper), 
+               alpha = 0.09, fill = "blue") +
+      geom_hline(yintercept = 0, linetype = 1, size = 0.5) +
+      ggtitle(titlez)-> p.fin
+    
+    return(list(p, p.fin))
+    #   return(ggsave(plot = p[[3]], filename = paste0("~/Desktop/Seasonality/", paste(locs, collapse=""), ".png")))
+  }
   
-  forecast <- predict(m)
-  
-  # get plot prophet ----
-  p<- prophet_plot_components(m, forecast, render_plot=T)
-  
-  p[[3]] +
-    scale_x_datetime(expand = c(0,0), date_breaks = "1 month", date_labels = month.name) + 
-    labs(
-      x = "",
-      y = "Yearly Seasonal Impact"
-    ) + 
-    theme(
-      axis.text.x = element_text(angle = 90, hjust = 1),
-      panel.background = element_blank(),
-      axis.line = element_line("black", size = 0.2),
-      panel.grid.major.x = element_blank(),
-      panel.grid.minor.y = element_blank(),
-      panel.grid.major.y = element_line("gray90", 0.25)
-    ) +
-    annotate("rect",
-             xmin = as.POSIXct("2017-01-01 GMT"), 
-             xmax = as.POSIXct("2017-04-01 GMT"), 
-             ymin = 0, 
-             ymax = max(p[[3]]$data$yearly_upper), 
-             alpha = 0.09, fill = "blue") +
-    annotate("rect",
-             xmin = as.POSIXct("2017-11-01 GMT"), 
-             xmax = as.POSIXct("2017-12-31 GMT"), 
-             ymin = 0, 
-             ymax = max(p[[3]]$data$yearly_upper), 
-             alpha = 0.09, fill = "blue") +
-    geom_hline(yintercept = 0, linetype = 1, size = 0.5) +
-    ggtitle(titlez)-> p
-  
-  return(p)
-#   return(ggsave(plot = p[[3]], filename = paste0("~/Desktop/Seasonality/", paste(locs, collapse=""), ".png")))
-}
 
 # 
 p1.eu.hosp <- seasonality(locs = eu.countries[1], outcome = "hosp_patients_per_million", titlez = eu.countries[1])
@@ -98,7 +103,7 @@ p9.eu.hosp <- seasonality(locs = eu.countries[9], outcome = "hosp_patients_per_m
 p10.eu.hosp <- seasonality(locs = eu.countries[10], outcome = "hosp_patients_per_million", titlez = eu.countries[10])
 p11.eu.hosp <- seasonality(locs = eu.countries[11], outcome = "weekly_hosp_admissions_per_million", titlez = eu.countries[11])
 p12.eu.hosp <- seasonality(locs = eu.countries[12], outcome = "weekly_hosp_admissions_per_million", titlez = eu.countries[12])
-p13.eu.hosp <- seasonality(locs = eu.countries[13], outcome = "hosp_admissions_per_million", titlez = eu.countries[13])
+p13.eu.hosp <- seasonality(locs = eu.countries[13], outcome = "hosp_patients_per_million", titlez = eu.countries[13])
 p14.eu.hosp <- seasonality(locs = eu.countries[14], outcome = "hosp_patients_per_million", titlez = eu.countries[14])
 p15.eu.hosp <- seasonality(locs = eu.countries[15], outcome = "hosp_patients_per_million", titlez = eu.countries[15])
 p16.eu.hosp <- seasonality(locs = eu.countries[16], outcome = "hosp_patients_per_million", titlez = eu.countries[16])
@@ -115,12 +120,12 @@ p26.eu.hosp <- seasonality(locs = eu.countries[26], outcome = "hosp_patients_per
 p27.eu.hosp <- seasonality(locs = eu.countries[27], outcome = "hosp_patients_per_million", titlez = eu.countries[27])
 p28.eu.hosp <- seasonality(locs = eu.countries[28], outcome = "hosp_patients_per_million", titlez = eu.countries[28])
 
-#yo <- sapply(eu.countries, function(x) seasonality(locs = x, outcome = "hosp_patients_per_million", titlez = x))
-plotz.eu.hosp <- cowplot::plot_grid(p1.eu.hosp, p2.eu.hosp, p3.eu.hosp, p4.eu.hosp, p5.eu.hosp, p6.eu.hosp, p7.eu.hosp, 
-                               p8.eu.hosp, p9.eu.hosp, p10.eu.hosp, p11.eu.hosp, p12.eu.hosp, p13.eu.hosp, 
-                               p14.eu.hosp, p15.eu.hosp, p16.eu.hosp, p17.eu.hosp, p18.eu.hosp, p19.eu.hosp, 
-                               p20.eu.hosp, p21.eu.hosp, p22.eu.hosp, p23.eu.hosp, p24.eu.hosp, p25.eu.hosp, 
-                               p26.eu.hosp, p27.eu.hosp, p28.eu.hosp)
+# #yo <- sapply(eu.countries, function(x) seasonality(locs = x, outcome = "hosp_patients_per_million", titlez = x))
+# plotz.eu.hosp <- cowplot::plot_grid(p1.eu.hosp, p2.eu.hosp, p3.eu.hosp, p4.eu.hosp, p5.eu.hosp, p6.eu.hosp, p7.eu.hosp, 
+#                                p8.eu.hosp, p9.eu.hosp, p10.eu.hosp, p11.eu.hosp, p12.eu.hosp, p13.eu.hosp, 
+#                                p14.eu.hosp, p15.eu.hosp, p16.eu.hosp, p17.eu.hosp, p18.eu.hosp, p19.eu.hosp, 
+#                                p20.eu.hosp, p21.eu.hosp, p22.eu.hosp, p23.eu.hosp, p24.eu.hosp, p25.eu.hosp, 
+#                                p26.eu.hosp, p27.eu.hosp, p28.eu.hosp)
 
 #save_plot("~/Desktop/plot_eu.jpeg", plot = plotz.eu, base_height = 30)
 #ggsave("~/Desktop/plot_eu_hosp.png", plot = plotz.eu.hosp, width = 30, height = 20, dpi = 150)
@@ -151,4 +156,133 @@ p1.us.hosp <- seasonality(locs = "United States", outcome = "hosp_patients_per_m
 # 
 # #save_plot("~/Desktop/plot_us_ca.jpeg", plot = plotz.us_ca, base_height = 10)
 # ggsave("~/Desktop/plot_us_ca_hosp.png", plot = plotz.us_ca.hosp, height = 10, width=20, dpi=150)
-rm(plotz.us_ca.hosp)
+
+
+
+############################################################
+### Make TREND PLOTS ----
+library(gridExtra)
+library(grid)
+library(gtable)
+listz.trend <- c(
+  p1.eu.hosp[[1]][1],p2.eu.hosp[[1]][1],p3.eu.hosp[[1]][1],p4.eu.hosp[[1]][1],
+  p5.eu.hosp[[1]][1],p6.eu.hosp[[1]][1],p7.eu.hosp[[1]][1],p8.eu.hosp[[1]][1],
+  p9.eu.hosp[[1]][1],p10.eu.hosp[[1]][1],p11.eu.hosp[[1]][1],p12.eu.hosp[[1]][1],
+  p13.eu.hosp[[1]][1],p14.eu.hosp[[1]][1],p15.eu.hosp[[1]][1],p16.eu.hosp[[1]][1],
+  p17.eu.hosp[[1]][1],p18.eu.hosp[[1]][1],p19.eu.hosp[[1]][1],p20.eu.hosp[[1]][1],
+  p21.eu.hosp[[1]][1],p22.eu.hosp[[1]][1],p23.eu.hosp[[1]][1],p24.eu.hosp[[1]][1],
+  p25.eu.hosp[[1]][1],p26.eu.hosp[[1]][1],p27.eu.hosp[[1]][1],p28.eu.hosp[[1]][1],
+  p1.us.hosp[[1]][1]
+)
+p1.eu.hosp[[1]][1]
+
+
+trend.changes <- function(x){
+  plotz <- x + 
+    scale_x_datetime(date_breaks = "3 months", name = "", expand = c(0,0)) + 
+    labs(y = "Trend Component (Rate Per 100,000 Addition") + 
+    theme(axis.text.x = element_text(angle=90),
+          panel.background = element_blank(),
+          panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          panel.grid.major.y = element_line("gray80", size = 0.2),
+          axis.line = element_line("black", size = 0.3)
+    ) 
+  return(plotz)
+}
+
+listz.trend.plots <- purrr::map(.x = listz.trend, .f= ~trend.changes(.x))
+
+trend.final <- cowplot::plot_grid(plotlist = listz.trend.plots, labels = c(eu.countries, "United States"), label_x = 0.2)
+ggsave(plot = trend.final, filename = "~/Desktop/trend.tiff", dpi = 300, height = 20, width = 30)
+ggsave(plot = trend.final, filename = "~/Desktop/trend.pdf", dpi = 300, height = 20, width = 30)
+
+########################################## end trend
+
+
+
+
+############################################################
+### Make WEEKLY  ----
+library(gridExtra)
+library(grid)
+library(gtable)
+listz.week <- c(
+  p1.eu.hosp[[1]][2],p2.eu.hosp[[1]][2],p3.eu.hosp[[1]][2],p4.eu.hosp[[1]][2],
+  p5.eu.hosp[[1]][2],p6.eu.hosp[[1]][2],p7.eu.hosp[[1]][2],p8.eu.hosp[[1]][2],
+  p9.eu.hosp[[1]][2],p10.eu.hosp[[1]][2],p11.eu.hosp[[1]][2],p12.eu.hosp[[1]][2],
+  p13.eu.hosp[[1]][2],p14.eu.hosp[[1]][2],p15.eu.hosp[[1]][2],p16.eu.hosp[[1]][2],
+  p17.eu.hosp[[1]][2],p18.eu.hosp[[1]][2],p19.eu.hosp[[1]][2],p20.eu.hosp[[1]][2],
+  p21.eu.hosp[[1]][2],p22.eu.hosp[[1]][2],p23.eu.hosp[[1]][2],p24.eu.hosp[[1]][2],
+  p25.eu.hosp[[1]][2],p26.eu.hosp[[1]][2],p27.eu.hosp[[1]][2],p28.eu.hosp[[1]][2],
+  p1.us.hosp[[1]][2]
+)
+
+week.changes <- function(x){
+  plotz <- x + 
+    #scale_x_datetime( expand = c(0,0)) + 
+    labs(y = "Weekly Component (Rate Per 100,000 \nAddition \n",
+         x = "") + 
+    theme(axis.text.x = element_text(angle=90),
+          panel.background = element_blank(),
+          panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          panel.grid.major.y = element_line("gray80", size = 0.2),
+          axis.line = element_line("black", size = 0.3)
+    ) 
+  return(plotz)
+}
+
+listz.week.plots <- purrr::map(.x = listz.week, .f= ~week.changes(.x))
+
+week.final <- cowplot::plot_grid(plotlist = listz.week.plots, labels = c(eu.countries, "United States"), label_x = 0.2)
+ggsave(plot = week.final, filename = "~/Desktop/week.tiff", dpi = 300, height = 20, width = 30)
+ggsave(plot = week.final, filename = "~/Desktop/week.pdf", dpi = 300, height = 20, width = 30)
+
+########################################## end WEEKLY
+
+
+
+
+
+############################################################
+### Make stringency  ----
+library(gridExtra)
+library(grid)
+library(gtable)
+listz.reg <- c(
+  p1.eu.hosp[[1]][4],p2.eu.hosp[[1]][4],p3.eu.hosp[[1]][4],p4.eu.hosp[[1]][4],
+  p5.eu.hosp[[1]][4],p6.eu.hosp[[1]][4],p7.eu.hosp[[1]][4],p8.eu.hosp[[1]][4],
+  p9.eu.hosp[[1]][4],p10.eu.hosp[[1]][4],p11.eu.hosp[[1]][4],p12.eu.hosp[[1]][4],
+  p13.eu.hosp[[1]][4],p14.eu.hosp[[1]][4],p15.eu.hosp[[1]][4],p16.eu.hosp[[1]][4],
+  p17.eu.hosp[[1]][4],p18.eu.hosp[[1]][4],p19.eu.hosp[[1]][4],p20.eu.hosp[[1]][4],
+  p21.eu.hosp[[1]][4],p22.eu.hosp[[1]][4],p23.eu.hosp[[1]][4],p24.eu.hosp[[1]][4],
+  p25.eu.hosp[[1]][4],p26.eu.hosp[[1]][4],p27.eu.hosp[[1]][4],p28.eu.hosp[[1]][4],
+  p1.us.hosp[[1]][4]
+)
+
+reg.changes <- function(x){
+  plotz <- x + 
+    scale_x_datetime(date_breaks = "3 months", name = "", expand = c(0,0)) + 
+    labs(y = "Stringency Index Component (Rate Per 100,000 \nAddition \n",
+         x = "") + 
+    theme(axis.text.x = element_text(angle=90),
+          panel.background = element_blank(),
+          panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          panel.grid.major.y = element_line("gray80", size = 0.2),
+          axis.line = element_line("black", size = 0.3)
+    ) 
+  return(plotz)
+}
+
+listz.reg.plots <- purrr::map(.x = listz.reg, .f= ~reg.changes(.x))
+
+reg.final <- cowplot::plot_grid(plotlist = listz.reg.plots, labels = c(eu.countries, "United States"), label_x = 0.2)
+ggsave(plot = reg.final, filename = "~/Desktop/reg.tiff", dpi = 300, height = 20, width = 30)
+ggsave(plot = reg.final, filename = "~/Desktop/reg.pdf", dpi = 300, height = 20, width = 30)
+
+########################################## end stringency
+
+
+
