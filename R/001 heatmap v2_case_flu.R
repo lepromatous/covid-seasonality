@@ -1,4 +1,4 @@
-type = "cases"
+type = "flu"
 
 # extract lower bound of yearly from annual seasonal component
 d <- grep("p",names(.GlobalEnv),value=TRUE)
@@ -7,66 +7,72 @@ type <- sub(".*\\.", "", d)[1]
 type <- substr(type, start=1, stop = nchar(type)-1)
 
 # remove items that dont have plots ----
-d <- d[!d %in% c("type", "country.lookup", "listz.reg.plots", "listz.week.plots", "listz.trend.plots", "plotz.eu.hosp",
-                 "p5.eu.flu", "p6.eu.flu", "p26.eu.flu", "p28.eu.flu")] 
-# pull out clean prophet plots from list of names and save plot
-season <- do.call(rbind, lapply(d, get))
-#season <- season[((length(season)/2)+1):length(season)] # do.call extracts first element, then rbinds 2nd element - doesnt interleave ----
-# do.call extracts first element, then rbinds 2nd element - doesnt interleave ----
+d <- d[!d %in% c("type", "country.lookup", "listz.reg.plots", "listz.week.plots", "listz.trend.plots", "plotz.eu.hosp")] 
+
+#########################
+# now get data from list to use for heatmaps
+#########################
+# turn d to data frame - same general approach as above - 1st set is what we need for raw data
+season2 <- do.call(rbind, lapply(d, get))
+season2 <- season2[1:((length(season2)/2))] 
 # arrange season in order we want to see ----
 d %>%
   tibble() %>%
   dplyr::arrange(
     readr::parse_number(.)
-  ) -> out
+  ) -> out # shows current order
+orderit <- match(out[[1]], d) # match d to order we want
 
-orderit <- match(out[[1]], d)
-season <- season[orderit]
-season <- season[c(1, 3:27, 2)]  # verify country order with d, out, orderit. 
+# re arrange season to order we want
+season2 <- season2[orderit]
+# put US last. 
+season2 <- season2[c(1,3:29,2 )]
 
-new.eu.countries <- c(eu.countries[-c(5,6,26:28)], "United Kingdom", "United States")
+season2 <- lapply(season2, function(x) x$yearly)
 
-out <- data.table::rbindlist(season)
-out$country <- rep(new.eu.countries, each = 365)
-out %>%
-  group_by(country, lubridate::month(ds)) %>%
+#unlist to make usable data
+season3 <- data.frame("rate" = unlist(season2))
+
+# add country label per above reorder
+season3$country <- rep(c(eu.countries, "United States"), easy= 365)
+
+# add dates as these are daily data starting march 1, 2020    
+season3$date <- rep(seq.Date(as.Date("2020-01-01"), by="day", length.out=365), times=length(season2))
+
+# monthly aggregate 
+season3 %>%
+  group_by(country, lubridate::month(date)) %>%
   summarise(
-    rate = median(yearly)
+    med.rate = median(rate, na.rm=T)
   ) %>%
   rename(
     rate = 3,
     country = 1, 
     month = 2
-  )-> out
-  
+  ) %>%
+  ungroup() -> out
+
+# min max for all countries for plotting
 minz <- min(out$rate)
 maxz <- max(out$rate)
 
 ggplot() +
   geom_tile(data=out, aes(x = month, y = country, fill = rate)) +
   coord_fixed() + 
-  scale_fill_gradient2(low = "#67BB6E", mid = "white", high = "#0095FF", breaks = c(minz, 0,  maxz), labels = c(round(minz,0), 0, round(maxz,0))) + 
+  scale_fill_gradient2(low = "#67BB6E", mid = "white", high = "#0095FF", 
+                       breaks = c(minz, 0,  maxz), 
+                       labels = c(round(minz,0), 0, round(maxz,0))) + 
   scale_x_continuous(breaks = c(seq(1:12)), labels = c(month.abb)) + 
   labs(
     x = "",
     y = "",
-    fill = "Annual Seasonal \nAddition to \nRate Per 100,000"
+    fill = "Annual Seasonal \nAddition to \nRate Per Million"
   ) +
   theme(
     panel.background = element_blank(),
     axis.text.x = element_text(angle=90, vjust=0.5)
   ) 
 
+ggsave(paste0("~/Desktop/heatmap_", type, ".pdf"), height = 9, dpi = 300)
+ggsave(paste0("~/Desktop/heatmap_", type, ".tiff"), height = 9, dpi = 300)
 
-    ggsave(paste0("~/Desktop/heatmap_flu_", type, ".pdf"), height = 9, dpi = 300)
-    ggsave(paste0("~/Desktop/heatmap_flu_", type, ".tiff"), height = 9, dpi = 300)
-
-    #rm(list = ls())
-
-
-df %>%
-  group_by(country_area_or_territory) %>%
-  filter(country_area_or_territory %in% eu.countries) %>%
-  summarise(
-    table(!is.na(y))
-  ) -> miss

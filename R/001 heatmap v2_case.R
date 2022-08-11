@@ -101,7 +101,7 @@ season3 %>%
       labs(
         x = "",
         y = "",
-        fill = "Annual Seasonal \nAddition to \nRate Per 100,000"
+        fill = "Annual Seasonal \nAddition to \nRate Per Million"
       ) +
       theme(
         panel.background = element_blank(),
