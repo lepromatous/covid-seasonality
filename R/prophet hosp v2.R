@@ -17,7 +17,7 @@ library(qcensus)
   # pull data ----
   df <- vroom::vroom("https://covid.ourworldindata.org/data/owid-covid-data.csv")
   # subset
-  df <- subset(df, df$date>="2020-02-28" & df$date <= "2022-07-31")
+  df <- subset(df, df$date>"2020-02-28" & df$date <= "2022-07-31")
   
   
   # Set up prophet ----

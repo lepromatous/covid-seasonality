@@ -11,34 +11,25 @@ library(ggplot2)
 library(tidyr)
 library(RSocrata)
 library(qcensus)
-# yo <- c("United States", "Canada", "Austria", "Belgium", "Bulgaria", "Croatia", 
-#         "Cyprus", "Czechia", "Denmark", "Estonia", "Finland", "France", 
-#         "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia", 
-#         "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", 
-#         "Romania", "Slovakia", "Slovenia", "Spain", "Sweden", "United Kingdom", 
-#         "Columbia", "Brazil", "Peru", "Ecuador", "Bolivia", "Guyana", "Suriname", 
-#         "Venezuela")
 
 
 
-#season <- function(){
-  
-  eu.countries <-  c("Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czechia", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden", "United Kingdom")
-  sa.countries <- c("Columbia", "Brazil", "Peru", "Ecuador", "Bolivia", "Guyana", "Suriname", "Venezuela")
-  
-  # pull data ----
-  df <- vroom::vroom("https://covid.ourworldindata.org/data/owid-covid-data.csv")
 
-  df <- subset(df, df$date>="2020-02-28")
-  
-  # Set up prophet ----
-  m <- prophet(daily.seasonality= F, 
-               weekly.seasonality=T,
-               yearly.seasonality = T,
-               interval.width = .95,
-               seasonality.mode = 'additive',
-               uncertainty.samples = 1000, 
-               mcmc.samples=500) ##
+eu.countries <-  c("Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czechia", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden", "United Kingdom")
+
+# pull data ----
+df <- vroom::vroom("https://covid.ourworldindata.org/data/owid-covid-data.csv")
+
+df <- subset(df, df$date>"2020-02-28" & df$date <= "2022-07-31")
+
+# Set up prophet ----
+m <- prophet(daily.seasonality= F, 
+             weekly.seasonality=T,
+             yearly.seasonality = T,
+             interval.width = .95,
+             seasonality.mode = 'additive',
+             uncertainty.samples = 2000, 
+             mcmc.samples=2000) ##
 m <- add_regressor(m, "stringency_index")
   
 seasonality <- function(locs, outcome, titlez){
@@ -121,43 +112,8 @@ p26.eu.cases <- seasonality(locs = eu.countries[26], outcome = "new_cases_per_mi
 p27.eu.cases <- seasonality(locs = eu.countries[27], outcome = "new_cases_per_million", titlez = eu.countries[27])
 p28.eu.cases <- seasonality(locs = eu.countries[28], outcome = "new_cases_per_million", titlez = eu.countries[28])
 
-#yo <- sapply(eu.countries, function(x) seasonality(locs = x, outcome = "new_cases_per_million", titlez = x))
-
-# plotz.eu.cases <- cowplot::plot_grid(p1.eu.cases, p2.eu.cases, p3.eu.cases, p4.eu.cases, p5.eu.cases, p6.eu.cases, p7.eu.cases, 
-#                                p8.eu.cases, p9.eu.cases, p10.eu.cases, p11.eu.cases, p12.eu.cases, p13.eu.cases, 
-#                                p14.eu.cases, p15.eu.cases, p16.eu.cases, p17.eu.cases, p18.eu.cases, p19.eu.cases, 
-#                                p20.eu.cases, p21.eu.cases, p22.eu.cases, p23.eu.cases, p24.eu.cases, p25.eu.cases, 
-#                                p26.eu.cases, p27.eu.cases, p28.eu.cases)
-
-#save_plot("~/Desktop/plot_eu.jpeg", plot = plotz.eu, base_height = 30)
-#ggsave("~/Desktop/plot_eu_case.png", plot = plotz.eu.cases, width = 30, height = 20, dpi = 150)
-
-
-
-
-# p1.sa <- seasonality(locs = eu.countries[1], outcome = "new_cases_per_million", titlez = eu.countries[1])
-# p2.sa <- seasonality(locs = eu.countries[2], outcome = "new_cases_per_million", titlez = eu.countries[2])
-# p3.sa <- seasonality(locs = eu.countries[3], outcome = "new_cases_per_million", titlez = eu.countries[3])
-# p4.sa <- seasonality(locs = eu.countries[4], outcome = "new_cases_per_million", titlez = eu.countries[4])
-# p5.sa <- seasonality(locs = eu.countries[5], outcome = "new_cases_per_million", titlez = eu.countries[5])
-# p6.sa <- seasonality(locs = eu.countries[6], outcome = "new_cases_per_million", titlez = eu.countries[6])
-# p7.sa <- seasonality(locs = eu.countries[7], outcome = "new_cases_per_million", titlez = eu.countries[7])
-# p8.sa <- seasonality(locs = eu.countries[8], outcome = "new_cases_per_million", titlez = eu.countries[8])
-# 
-# #yo <- sapply(eu.countries, function(x) seasonality(locs = x, outcome = "new_cases_per_million", titlez = x))
-# 
-# plotz <- cowplot::plot_grid(p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21,
-#                             p22, p23, p24, p25, p26, p27, p28)
-# 
-# save_plot("~/Desktop/plot_sa.pdf", plot = plotz, base_height = 30)
-
 ## usa canada
 p1.us.cases <- seasonality(locs = "United States", outcome = "new_cases_per_million", titlez = "USA")
-#p1.ca.cases <- seasonality(locs = "Canada", outcome = "new_cases_per_million", titlez = "Canada")
-#plotz.us_ca.cases <- cowplot::plot_grid(p1.us.cases, p1.ca.cases, nrow = 2)
-
-#save_plot("~/Desktop/plot_us_ca.jpeg", plot = plotz.us_ca, base_height = 10)
-#ggsave("~/Desktop/plot_us_ca_case.png", plot = plotz.us_ca.cases, height = 10, width=20, dpi=150)
 
 
 ############################################################

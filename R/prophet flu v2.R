@@ -14,7 +14,7 @@ library(qcensus)
 
 
 #######################################################
-### read flu df from Jacob and clean
+### read flu df 
 ### df scrape from:  https://apps.who.int/flumart/Default?ReportNo=12
 ### https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6086842/
 ###https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0193263
@@ -75,14 +75,15 @@ m <- prophet(daily.seasonality= F,
              yearly.seasonality = T,
              interval.width = .95,
              seasonality.mode = 'additive',
-             uncertainty.samples = 1000, 
-             mcmc.samples=500) ##
+             uncertainty.samples = 2000, 
+             mcmc.samples=2000) ##
 
 seasonality <- function(locs, outcome = "y", titlez){
   df <- subset(df, df$country_area_or_territory == locs)
   
   df <- df[,c("ds", "y")]
   # forecast and decompose
+  set.seed(1234)
   m <- fit.prophet(m, df) 
   
   forecast <- predict(m)
@@ -218,7 +219,7 @@ d %>%
     month = 2
   )-> out
 
-out <- out[!out$country%in%c("Cyprus","Sweden"),] # data make other things not work. seem to be entry errors
+out <- out[!out$country%in%c("Cyprus","Sweden"),] # data make other things not work. possibly entry errors or other surveillance issues
 out$country[out$country=="United States of America"] <- "United States"
 out$country[out$country=="United Kingdom of Great Britain and Northern Ireland"] <- "United Kingdom"
 
