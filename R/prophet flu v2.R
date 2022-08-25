@@ -153,7 +153,8 @@ p26.eu.flu <- seasonality(locs = eu.countries[26], outcome = "y", titlez = eu.co
 p27.eu.flu <- seasonality(locs = eu.countries[27], outcome = "y", titlez = eu.countries[27])
 p28.eu.flu <- seasonality(locs = eu.countries[28], outcome = "y", titlez = eu.countries[28])
 
-p1.us.flu <- seasonality(locs = "United States of America", outcome = "y", titlez = "USA")
+# 28 is USA
+#p1.us.flu <- seasonality(locs = "United States of America", outcome = "y", titlez = "USA")
 
 
 

@@ -23,10 +23,8 @@ d %>%
   ) -> out # shows current order
 orderit <- match(out[[1]], d) # match d to order we want
 
-# re arrange season to order we want
+# re arrange season to order we want, US is already last
 season2 <- season2[orderit]
-# put US last. 
-season2 <- season2[c(1,3:29,2 )]
 
 season2 <- lapply(season2, function(x) x$yearly)
 
@@ -34,7 +32,7 @@ season2 <- lapply(season2, function(x) x$yearly)
 season3 <- data.frame("rate" = unlist(season2))
 
 # add country label per above reorder
-season3$country <- rep(c(eu.countries, "United States"), easy= 365)
+season3$country <- rep(c(eu.countries), easy= 365)
 
 # add dates as these are daily data starting march 1, 2020    
 season3$date <- rep(seq.Date(as.Date("2020-01-01"), by="day", length.out=365), times=length(season2))
@@ -55,6 +53,10 @@ season3 %>%
 # min max for all countries for plotting
 minz <- min(out$rate)
 maxz <- max(out$rate)
+
+# fix labels to match fig 1
+out$country[out$country == 'United Kingdom of Great Britain and Northern Ireland'] <- "United Kingdom"
+out$country[out$country == 'United States of America'] <- "United States"
 
 ggplot() +
   geom_tile(data=out, aes(x = month, y = country, fill = rate)) +
